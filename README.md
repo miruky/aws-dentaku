@@ -23,7 +23,8 @@ AWS Pricing Calculatorは正確ですが、サービスを1つずつ追加して
 
 - リージョン(東京・バージニア北部・オレゴン・アイルランド)とLambdaのアーキテクチャを選びます
 - 各サービスの月間使用量を入力すると、即座に月額(USD)とサービス別内訳が更新されます
-- 「共有URLをコピー」で、現在の入力をURLとして共有できます
+- 「共有URLをコピー」で、現在の入力をURLとして共有できます。入力はこの端末にも保存され、次回そのまま復元されます
+- ヘッダーの「テーマ」で、自動・明・暗を切り替えられます(prefers-color-schemeに追従)
 
 入力例: 月300万リクエストのHTTP API + Lambda(120ms・512MB・arm64)+ DynamoDB読み込み500万・書き込み100万 + S3 50GBで、おおよそ月$11前後になります(東京リージョン、料金改定で変動)。
 
@@ -39,8 +40,8 @@ AWS Pricing Calculatorは正確ですが、サービスを1つずつ追加して
 | :--------- | :------------------------------------------ |
 | 言語       | TypeScript 5(strict)                        |
 | 料金データ | AWS Price List Bulk API(認証不要)           |
-| ビルド     | Vite                                        |
-| テスト     | Vitest(24テスト)                            |
+| ビルド     | Vite 8                                      |
+| テスト     | Vitest(28テスト)                            |
 | リンタ     | ESLint + Prettier                           |
 | CI / CD    | GitHub Actions(CI・Pages配信・料金定期更新) |
 | 実行時依存 | なし                                        |
@@ -61,14 +62,15 @@ node scripts/update-prices.mjs
 - `src/lib/types.ts` — 料金表と使用量の型
 - `src/lib/calc.ts` — 段階料金の積み上げ計算と表示フォーマット
 - `src/lib/share.ts` — 見積もり状態のURLエンコード
-- `src/app.ts` — 入力フォームと結果表示の配線
+- `src/lib/theme.ts` — テーマ(自動・明・暗)解決の純粋関数
+- `src/app.ts` — 入力フォーム・テーマ・結果表示の配線
 - `docs/architecture.svg` — アーキテクチャ図
 
 ## はじめ方
 
 ### 前提条件
 
-- Node.js 20 以上
+- Node.js 20.19 以上(または 22.12 以上)
 
 ### セットアップ
 
