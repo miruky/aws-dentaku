@@ -1,8 +1,10 @@
 // 画面の組み立て。計算は src/lib/calc.ts、状態の共有は src/lib/share.ts に分離してあり、
 // ここでは入力の読み書き、テーマ、保存・共有、描画を受け持つ。
 
-import { computeCosts, formatQuantity, formatUsd, type CostResult } from './lib/calc';
+import { computeCosts, formatJpy, formatQuantity, formatUsd, type CostResult } from './lib/calc';
 import { decodeState, encodeState, type ShareState } from './lib/share';
+import { PRESETS } from './lib/presets';
+import { breakdownMarkdown } from './lib/export';
 import {
   REGION_LABELS,
   emptyUsage,
@@ -22,6 +24,17 @@ import priceData from './data/prices.json';
 
 const PRICES = priceData as unknown as PriceData;
 const STORAGE_KEY = 'aws-dentaku:v1';
+const RATE_KEY = 'aws-dentaku:jpy';
+const DEFAULT_RATE = 150;
+
+function loadRate(): number {
+  try {
+    const raw = Number(localStorage.getItem(RATE_KEY));
+    return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_RATE;
+  } catch {
+    return DEFAULT_RATE;
+  }
+}
 
 // サービスの分類色はテーマに追従させたいので、値はCSS変数で持つ。
 const SERVICE_VARS: Record<string, string> = {
@@ -143,6 +156,15 @@ export function mountApp(root: HTMLElement): void {
       <label class="choice"><input type="radio" name="arch" value="x86" checked /> x86_64</label>
       <label class="choice"><input type="radio" name="arch" value="arm" /> arm64</label>
     </fieldset>
+    <div class="control presets">
+      <span class="control__label">構成プリセット</span>
+      <div class="preset-btns">
+        ${PRESETS.map(
+          (p) =>
+            `<button type="button" class="preset" data-preset="${p.id}" title="${esc(p.description)}">${esc(p.label)}</button>`,
+        ).join('')}
+      </div>
+    </div>
   </div>
 
   <main class="reveal">
@@ -175,11 +197,21 @@ export function mountApp(root: HTMLElement): void {
     <aside class="result-pane" aria-labelledby="result-h">
       <div class="pane-head">
         <p class="kicker">月額見積もり</p>
-        <button type="button" id="share" class="ghost">共有URLをコピー</button>
+        <div class="pane-actions">
+          <button type="button" id="export" class="ghost">内訳をコピー</button>
+          <button type="button" id="share" class="ghost">共有URLをコピー</button>
+        </div>
       </div>
       <div class="total" aria-live="polite">
         <span class="total__usd" data-total>$0.00</span>
         <span class="total__per">/ 月</span>
+      </div>
+      <div class="jpy">
+        <span class="jpy__amount" data-jpy>—</span>
+        <label class="jpy__rate">1 USD =
+          <input id="rate" type="number" min="1" step="1" inputmode="decimal" />
+          円
+        </label>
       </div>
       <div class="donut-wrap" data-donut>${donutSvg(
         computeCosts(PRICES.regions['ap-northeast-1']!, emptyUsage()),
@@ -202,8 +234,11 @@ export function mountApp(root: HTMLElement): void {
   const regionEl = $<HTMLSelectElement>('#region');
   const resultEl = $<HTMLDivElement>('#result');
   const totalEl = $('[data-total]');
+  const jpyEl = $('[data-jpy]');
+  const rateEl = $<HTMLInputElement>('#rate');
   const noteEl = $('[data-note]');
   const shareEl = $<HTMLButtonElement>('#share');
+  const exportEl = $<HTMLButtonElement>('#export');
   const themeEl = $<HTMLButtonElement>('#theme');
   const themeValueEl = $('[data-theme-value]');
   const donutWrapEl = $('[data-donut]');
@@ -226,6 +261,11 @@ export function mountApp(root: HTMLElement): void {
   const num = (el: HTMLInputElement) => {
     const v = Number(el.value);
     return Number.isFinite(v) && v >= 0 ? v : 0;
+  };
+
+  const currentRate = () => {
+    const v = Number(rateEl.value);
+    return Number.isFinite(v) && v > 0 ? v : DEFAULT_RATE;
   };
 
   function readUsage(): Usage {
@@ -275,6 +315,7 @@ export function mountApp(root: HTMLElement): void {
     const result = computeCosts(prices, usage);
 
     totalEl.textContent = formatUsd(result.total);
+    jpyEl.textContent = `≈ ${formatJpy(result.total, currentRate())}`;
     donutWrapEl.innerHTML = donutSvg(result);
 
     const rows = result.services
@@ -317,6 +358,46 @@ export function mountApp(root: HTMLElement): void {
 
   root.querySelectorAll('input, select').forEach((el) => el.addEventListener('input', render));
 
+  rateEl.addEventListener('input', () => {
+    try {
+      localStorage.setItem(RATE_KEY, String(currentRate()));
+    } catch {
+      // 保存できなくても表示は更新される
+    }
+  });
+
+  root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const preset = PRESETS.find((p) => p.id === button.dataset.preset);
+      if (preset === undefined) return;
+      writeUsage(preset.usage, regionEl.value);
+      render();
+    });
+  });
+
+  exportEl.addEventListener('click', () => {
+    const usage = readUsage();
+    const prices = PRICES.regions[regionEl.value];
+    if (!prices) return;
+    const result = computeCosts(prices, usage);
+    const rate = currentRate();
+    const md = breakdownMarkdown(result, {
+      region: regionEl.value,
+      generatedAt: PRICES.generatedAt,
+      jpy: { rate, total: formatJpy(result.total, rate) },
+    });
+    void navigator.clipboard
+      .writeText(md)
+      .then(() => {
+        exportEl.textContent = 'コピーしました';
+        setTimeout(() => (exportEl.textContent = '内訳をコピー'), 1500);
+      })
+      .catch(() => {
+        exportEl.textContent = 'コピーできません';
+        setTimeout(() => (exportEl.textContent = '内訳をコピー'), 1500);
+      });
+  });
+
   shareEl.addEventListener('click', () => {
     void navigator.clipboard
       .writeText(location.href)
@@ -347,6 +428,7 @@ export function mountApp(root: HTMLElement): void {
   setupReveal(root);
 
   const initial = loadState();
+  rateEl.value = String(loadRate());
   syncTheme();
   writeUsage(initial.usage, initial.region);
   render();
