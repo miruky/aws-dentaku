@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { tieredCost, lambdaGbSeconds, computeCosts, formatUsd, formatQuantity } from './calc';
+import {
+  tieredCost,
+  lambdaGbSeconds,
+  computeCosts,
+  formatUsd,
+  formatQuantity,
+  formatJpy,
+} from './calc';
 import { emptyUsage, type RegionPrices, type Tier } from './types';
 import priceData from '../data/prices.json';
 
@@ -154,5 +161,11 @@ describe('表示フォーマット', () => {
   it('formatQuantity は桁区切りする', () => {
     expect(formatQuantity(1_000_000)).toBe('1,000,000');
     expect(formatQuantity(1234.567)).toBe('1,234.57');
+  });
+
+  it('formatJpy はレートで円へ概算し整数まるめする', () => {
+    expect(formatJpy(10.76, 150)).toBe('¥1,614');
+    expect(formatJpy(0, 150)).toBe('¥0');
+    expect(formatJpy(10, 0)).toBe('—');
   });
 });
