@@ -157,3 +157,9 @@ export function formatQuantity(value: number): string {
   if (Number.isInteger(value)) return value.toLocaleString('en-US');
   return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 }
+
+/** USDを為替レートで円へ概算する。円は整数まるめで桁区切り表示。 */
+export function formatJpy(usd: number, rate: number): string {
+  if (!(rate > 0)) return '—';
+  return `¥${Math.round(usd * rate).toLocaleString('en-US')}`;
+}
