@@ -23,6 +23,9 @@ AWS Pricing Calculatorは正確ですが、サービスを1つずつ追加して
 
 - リージョン(東京・バージニア北部・オレゴン・アイルランド)とLambdaのアーキテクチャを選びます
 - 各サービスの月間使用量を入力すると、即座に月額(USD)とサービス別内訳が更新されます
+- 「構成プリセット」(個人開発・スタートアップ・成長期)から、典型的な規模の使用量を一括で流し込めます
+- 合計の下に円換算が出ます。為替レートは編集でき、この端末に保存されます
+- 「内訳をコピー」で、Markdownの表(サービス別の数量と金額・円換算つき)をクリップボードへ書き出せます
 - 「共有URLをコピー」で、現在の入力をURLとして共有できます。入力はこの端末にも保存され、次回そのまま復元されます
 - ヘッダーの「テーマ」で、自動・明・暗を切り替えられます(prefers-color-schemeに追従)
 
@@ -41,7 +44,7 @@ AWS Pricing Calculatorは正確ですが、サービスを1つずつ追加して
 | 言語       | TypeScript 5(strict)                        |
 | 料金データ | AWS Price List Bulk API(認証不要)           |
 | ビルド     | Vite 8                                      |
-| テスト     | Vitest(28テスト)                            |
+| テスト     | Vitest(35テスト)                            |
 | リンタ     | ESLint + Prettier                           |
 | CI / CD    | GitHub Actions(CI・Pages配信・料金定期更新) |
 | 実行時依存 | なし                                        |
@@ -63,7 +66,9 @@ node scripts/update-prices.mjs
 - `src/lib/calc.ts` — 段階料金の積み上げ計算と表示フォーマット
 - `src/lib/share.ts` — 見積もり状態のURLエンコード
 - `src/lib/theme.ts` — テーマ(自動・明・暗)解決の純粋関数
-- `src/app.ts` — 入力フォーム・テーマ・結果表示の配線
+- `src/lib/presets.ts` — 典型的な規模の使用量プリセット
+- `src/lib/export.ts` — 内訳のMarkdown書き出し
+- `src/app.ts` — 入力フォーム・テーマ・プリセット・結果表示の配線
 - `docs/architecture.svg` — アーキテクチャ図
 
 ## はじめ方
