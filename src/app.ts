@@ -1,8 +1,8 @@
 // 画面の組み立て。計算は src/lib/calc.ts、状態の共有は src/lib/share.ts に分離してあり、
-// ここでは入力の読み書きと描画だけを行う。
+// ここでは入力の読み書き、テーマ、保存・共有、描画を受け持つ。
 
 import { computeCosts, formatQuantity, formatUsd, type CostResult } from './lib/calc';
-import { decodeState, encodeState } from './lib/share';
+import { decodeState, encodeState, type ShareState } from './lib/share';
 import {
   REGION_LABELS,
   emptyUsage,
@@ -10,19 +10,29 @@ import {
   type Usage,
   type Architecture,
 } from './lib/types';
+import {
+  isThemePref,
+  nextTheme,
+  resolveTheme,
+  THEME_KEY,
+  THEME_LABELS,
+  type ThemePref,
+} from './lib/theme';
 import priceData from './data/prices.json';
 
 const PRICES = priceData as unknown as PriceData;
+const STORAGE_KEY = 'aws-dentaku:v1';
 
-const SERVICE_COLORS: Record<string, string> = {
-  lambda: '#c47c1f',
-  apiGateway: '#7d4fbe',
-  dynamoDb: '#3b66db',
-  s3: '#2e8b57',
+// サービスの分類色はテーマに追従させたいので、値はCSS変数で持つ。
+const SERVICE_VARS: Record<string, string> = {
+  lambda: '--c-lambda',
+  apiGateway: '--c-apigw',
+  dynamoDb: '--c-ddb',
+  s3: '--c-s3',
 };
 
 const BRAND_MARK =
-  '<svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="6" width="44" height="52" rx="8" fill="none" stroke="currentColor" stroke-width="4"/><path d="M18 16h28v10H18z" fill="none" stroke="var(--accent)" stroke-width="3.5" stroke-linejoin="round"/><path d="M20 36h6M29 36h6M38 36h6M20 46h6M29 46h6M38 46h6" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>';
+  '<svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="6" width="44" height="52" rx="7" fill="none" stroke="currentColor" stroke-width="3"/><path d="M18 16h28v9H18z" fill="none" stroke="var(--accent)" stroke-width="3"/><path d="M20 36h6M29 36h6M38 36h6M20 46h6M29 46h6M38 46h6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
 
 function esc(s: string): string {
   return s
@@ -48,30 +58,80 @@ function donutSvg(result: CostResult): string {
     .map((s) => {
       const ratio = s.usd / result.total;
       const dash = ratio * c;
-      const seg = `<circle r="${r}" cx="70" cy="70" fill="none" stroke="${SERVICE_COLORS[s.service]}"
-        stroke-width="18" stroke-dasharray="${dash} ${c - dash}" stroke-dashoffset="${-offset}"
-        transform="rotate(-90 70 70)"/>`;
+      const seg = `<circle r="${r}" cx="70" cy="70" fill="none" stroke="var(${SERVICE_VARS[s.service]})"
+        stroke-width="16" stroke-dasharray="${dash} ${c - dash}" stroke-dashoffset="${-offset}"
+        stroke-linecap="butt" transform="rotate(-90 70 70)"/>`;
       offset += dash;
       return seg;
     })
     .join('');
-  const empty = `<circle r="${r}" cx="70" cy="70" fill="none" stroke="var(--border)" stroke-width="18"/>`;
+  const empty = `<circle r="${r}" cx="70" cy="70" fill="none" stroke="var(--hair-strong)" stroke-width="16"/>`;
   return `<svg class="donut" viewBox="0 0 140 140" role="img" aria-label="サービス別コスト構成比">
     <title>サービス別コスト構成比</title>
     ${result.total > 0 ? segments : empty}
-    <text class="donut-total" x="70" y="66" text-anchor="middle">${esc(formatUsd(result.total))}</text>
-    <text class="donut-caption" x="70" y="84" text-anchor="middle">/ 月</text>
   </svg>`;
 }
 
+function defaultState(): ShareState {
+  // 典型的な小規模サーバーレスAPIを初期値にして、触る前から結果が見えるようにする。
+  const usage = emptyUsage();
+  usage.lambda = { requests: 3_000_000, durationMs: 120, memoryMb: 512, architecture: 'arm' };
+  usage.apiGateway.httpRequests = 3_000_000;
+  usage.dynamoDb = { reads: 5_000_000, writes: 1_000_000, storageGb: 10 };
+  usage.s3 = { storageGb: 50, putRequests: 100_000, getRequests: 2_000_000 };
+  return { region: 'ap-northeast-1', usage };
+}
+
+function loadState(): ShareState {
+  const fromHash = decodeState(location.hash);
+  if (fromHash) return fromHash;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw !== null) {
+      const decoded = decodeState(raw);
+      if (decoded) return decoded;
+    }
+  } catch {
+    // localStorageが使えない環境でも既定で動く
+  }
+  return defaultState();
+}
+
+function loadThemePref(): ThemePref {
+  try {
+    const raw = localStorage.getItem(THEME_KEY);
+    return isThemePref(raw) ? raw : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
+
 export function mountApp(root: HTMLElement): void {
+  let themePref = loadThemePref();
+  const media =
+    typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
+
+  function applyTheme(): void {
+    document.documentElement.dataset.theme = resolveTheme(themePref, media?.matches ?? false);
+  }
+
   root.innerHTML = `
-  <header class="site-header">
-    <div class="brand">${BRAND_MARK}<span class="brand-name">aws-dentaku</span></div>
-    <p class="tagline">サーバーレス構成の月額AWS料金を、公開料金データに基づいて見積もるブラウザ電卓</p>
+  <header class="site-header reveal">
+    <div class="masthead">
+      <div class="brand">${BRAND_MARK}<span class="brand-name">aws-dentaku</span></div>
+      <button type="button" id="theme" class="theme-toggle">
+        <span class="theme-toggle__label">テーマ</span>
+        <span class="theme-toggle__value" data-theme-value></span>
+      </button>
+    </div>
+    <p class="kicker">SERVERLESS COST ESTIMATE</p>
+    <h1 class="headline">サーバーレス構成の月額を、<br>公開された料金から見積もる。</h1>
+    <p class="lede">Lambda・API Gateway・DynamoDB・S3 の使用量を入れると、AWS Price List のオンデマンド単価で月額を試算します。計算はブラウザ内で完結し、入力は外部へ送られません。</p>
   </header>
-  <div class="controls">
-    <label class="control">リージョン
+
+  <div class="controls reveal">
+    <label class="control">
+      <span class="control__label">リージョン</span>
       <select id="region">
         ${Object.entries(REGION_LABELS)
           .map(([id, label]) => `<option value="${id}">${esc(label)} ${id}</option>`)
@@ -79,54 +139,75 @@ export function mountApp(root: HTMLElement): void {
       </select>
     </label>
     <fieldset class="control arch">
-      <legend>Lambdaアーキテクチャ</legend>
-      <label><input type="radio" name="arch" value="x86" checked /> x86_64</label>
-      <label><input type="radio" name="arch" value="arm" /> arm64</label>
+      <legend class="control__label">Lambda アーキテクチャ</legend>
+      <label class="choice"><input type="radio" name="arch" value="x86" checked /> x86_64</label>
+      <label class="choice"><input type="radio" name="arch" value="arm" /> arm64</label>
     </fieldset>
   </div>
-  <main>
+
+  <main class="reveal">
     <div class="inputs">
       <section class="pane" aria-labelledby="lambda-h">
-        <h2 id="lambda-h"><span class="dot" style="background:${SERVICE_COLORS.lambda}"></span>Lambda</h2>
+        <h2 id="lambda-h" class="pane__title"><span class="dot" style="background:var(--c-lambda)"></span>Lambda</h2>
         ${numberField('lambda-requests', 'リクエスト数', '回/月')}
         ${numberField('lambda-duration', '平均実行時間', 'ms')}
         ${numberField('lambda-memory', 'メモリ', 'MB', 64)}
       </section>
       <section class="pane" aria-labelledby="apigw-h">
-        <h2 id="apigw-h"><span class="dot" style="background:${SERVICE_COLORS.apiGateway}"></span>API Gateway</h2>
+        <h2 id="apigw-h" class="pane__title"><span class="dot" style="background:var(--c-apigw)"></span>API Gateway</h2>
         ${numberField('apigw-http', 'HTTP APIリクエスト', '回/月')}
         ${numberField('apigw-rest', 'REST APIリクエスト', '回/月')}
       </section>
       <section class="pane" aria-labelledby="ddb-h">
-        <h2 id="ddb-h"><span class="dot" style="background:${SERVICE_COLORS.dynamoDb}"></span>DynamoDB(オンデマンド)</h2>
+        <h2 id="ddb-h" class="pane__title"><span class="dot" style="background:var(--c-ddb)"></span>DynamoDB<span class="pane__sub">オンデマンド</span></h2>
         ${numberField('ddb-reads', '読み込み要求', 'RRU/月')}
         ${numberField('ddb-writes', '書き込み要求', 'WRU/月')}
         ${numberField('ddb-storage', 'ストレージ', 'GB', 0.1)}
       </section>
       <section class="pane" aria-labelledby="s3-h">
-        <h2 id="s3-h"><span class="dot" style="background:${SERVICE_COLORS.s3}"></span>S3(標準ストレージ)</h2>
+        <h2 id="s3-h" class="pane__title"><span class="dot" style="background:var(--c-s3)"></span>S3<span class="pane__sub">標準ストレージ</span></h2>
         ${numberField('s3-storage', 'ストレージ', 'GB', 0.1)}
         ${numberField('s3-put', 'PUT / POST / LIST', '回/月')}
         ${numberField('s3-get', 'GET / SELECT', '回/月')}
       </section>
     </div>
-    <section class="pane result-pane" aria-labelledby="result-h">
+
+    <aside class="result-pane" aria-labelledby="result-h">
       <div class="pane-head">
-        <h2 id="result-h">月額見積もり</h2>
+        <p class="kicker">月額見積もり</p>
         <button type="button" id="share" class="ghost">共有URLをコピー</button>
       </div>
-      <div id="result" aria-live="polite"></div>
-      <p class="note">料金データ: ${esc(new Date(PRICES.generatedAt).toISOString().slice(0, 10))} 時点の AWS Price List Bulk API(オンデマンド・USD・税抜)。無料利用枠・データ転送・Provisioned Concurrency などは含まない。</p>
-    </section>
+      <div class="total" aria-live="polite">
+        <span class="total__usd" data-total>$0.00</span>
+        <span class="total__per">/ 月</span>
+      </div>
+      <div class="donut-wrap" data-donut>${donutSvg(
+        computeCosts(PRICES.regions['ap-northeast-1']!, emptyUsage()),
+      )}</div>
+      <div id="result"></div>
+      <p class="note" data-note></p>
+    </aside>
   </main>
-  <footer class="site-footer">
-    <p>計算はすべてブラウザ内で完結し、入力が外部へ送信されることはない。</p>
+
+  <footer class="site-footer reveal">
+    <p>計算はすべてブラウザ内で完結し、入力が外部へ送信されることはありません。</p>
   </footer>`;
 
-  const regionEl = root.querySelector('#region') as HTMLSelectElement;
-  const resultEl = root.querySelector('#result') as HTMLDivElement;
-  const shareEl = root.querySelector('#share') as HTMLButtonElement;
-  const field = (id: string) => root.querySelector(`#${id}`) as HTMLInputElement;
+  const $ = <T extends HTMLElement>(sel: string): T => {
+    const el = root.querySelector<T>(sel);
+    if (el === null) throw new Error(`要素が見つからない: ${sel}`);
+    return el;
+  };
+
+  const regionEl = $<HTMLSelectElement>('#region');
+  const resultEl = $<HTMLDivElement>('#result');
+  const totalEl = $('[data-total]');
+  const noteEl = $('[data-note]');
+  const shareEl = $<HTMLButtonElement>('#share');
+  const themeEl = $<HTMLButtonElement>('#theme');
+  const themeValueEl = $('[data-theme-value]');
+  const donutWrapEl = $('[data-donut]');
+  const field = (id: string) => $<HTMLInputElement>(`#${id}`);
 
   const fields = {
     lambdaRequests: field('lambda-requests'),
@@ -148,8 +229,7 @@ export function mountApp(root: HTMLElement): void {
   };
 
   function readUsage(): Usage {
-    const arch = (root.querySelector('input[name="arch"]:checked') as HTMLInputElement)
-      .value as Architecture;
+    const arch = $<HTMLInputElement>('input[name="arch"]:checked').value as Architecture;
     return {
       lambda: {
         requests: num(fields.lambdaRequests),
@@ -184,10 +264,7 @@ export function mountApp(root: HTMLElement): void {
     fields.s3Storage.value = String(usage.s3.storageGb);
     fields.s3Put.value = String(usage.s3.putRequests);
     fields.s3Get.value = String(usage.s3.getRequests);
-    const arch = root.querySelector(
-      `input[name="arch"][value="${usage.lambda.architecture}"]`,
-    ) as HTMLInputElement;
-    arch.checked = true;
+    $<HTMLInputElement>(`input[name="arch"][value="${usage.lambda.architecture}"]`).checked = true;
   }
 
   function render(): void {
@@ -196,18 +273,22 @@ export function mountApp(root: HTMLElement): void {
     const prices = PRICES.regions[region];
     if (!prices) return;
     const result = computeCosts(prices, usage);
+
+    totalEl.textContent = formatUsd(result.total);
+    donutWrapEl.innerHTML = donutSvg(result);
+
     const rows = result.services
       .map((s, i) => {
         const lines = s.lines
           .filter((line) => line.quantity > 0)
           .map(
             (line) =>
-              `<li><span>${esc(line.label)} <span class="qty">${formatQuantity(line.quantity)} ${esc(line.unit)}</span></span><span class="usd">${esc(formatUsd(line.usd))}</span></li>`,
+              `<li><span class="line-label">${esc(line.label)}<span class="qty">${formatQuantity(line.quantity)} ${esc(line.unit)}</span></span><span class="usd">${esc(formatUsd(line.usd))}</span></li>`,
           )
           .join('');
         return `<div class="svc" style="--i:${i}">
           <div class="svc-head">
-            <span class="dot" style="background:${SERVICE_COLORS[s.service]}"></span>
+            <span class="dot" style="background:var(${SERVICE_VARS[s.service]})"></span>
             <span class="svc-name">${esc(s.label)}</span>
             <span class="svc-usd">${esc(formatUsd(s.usd))}</span>
           </div>
@@ -215,32 +296,82 @@ export function mountApp(root: HTMLElement): void {
         </div>`;
       })
       .join('');
-    resultEl.innerHTML = `${donutSvg(result)}<div class="svcs">${rows}</div>`;
-    history.replaceState(null, '', `#${encodeState({ region, usage })}`);
+    resultEl.innerHTML = `<div class="svcs">${rows}</div>`;
+    noteEl.textContent = `料金データ: ${new Date(PRICES.generatedAt).toISOString().slice(0, 10)} 時点の AWS Price List Bulk API(オンデマンド・USD・税抜)。無料利用枠・データ転送・Provisioned Concurrency などは含みません。`;
+
+    const state: ShareState = { region, usage };
+    const encoded = encodeState(state);
+    history.replaceState(null, '', `#${encoded}`);
+    try {
+      localStorage.setItem(STORAGE_KEY, encoded);
+    } catch {
+      // 保存できなくても計算は続く
+    }
+  }
+
+  function syncTheme(): void {
+    applyTheme();
+    themeValueEl.textContent = THEME_LABELS[themePref];
+    themeEl.setAttribute('aria-label', `テーマ: ${THEME_LABELS[themePref]}(押すと切替)`);
   }
 
   root.querySelectorAll('input, select').forEach((el) => el.addEventListener('input', render));
 
   shareEl.addEventListener('click', () => {
-    navigator.clipboard.writeText(location.href).then(() => {
-      shareEl.textContent = 'コピーした';
-      setTimeout(() => {
-        shareEl.textContent = '共有URLをコピー';
-      }, 1500);
-    });
+    void navigator.clipboard
+      .writeText(location.href)
+      .then(() => {
+        shareEl.textContent = 'コピーしました';
+        setTimeout(() => (shareEl.textContent = '共有URLをコピー'), 1500);
+      })
+      .catch(() => {
+        shareEl.textContent = 'コピーできません';
+        setTimeout(() => (shareEl.textContent = '共有URLをコピー'), 1500);
+      });
   });
 
-  const restored = decodeState(location.hash);
-  if (restored) {
-    writeUsage(restored.usage, restored.region);
-  } else {
-    // 典型的な小規模サーバーレスAPIを初期値にして、触る前から結果が見えるようにする
-    const usage = emptyUsage();
-    usage.lambda = { requests: 3_000_000, durationMs: 120, memoryMb: 512, architecture: 'arm' };
-    usage.apiGateway.httpRequests = 3_000_000;
-    usage.dynamoDb = { reads: 5_000_000, writes: 1_000_000, storageGb: 10 };
-    usage.s3 = { storageGb: 50, putRequests: 100_000, getRequests: 2_000_000 };
-    writeUsage(usage, 'ap-northeast-1');
-  }
+  themeEl.addEventListener('click', () => {
+    themePref = nextTheme(themePref);
+    try {
+      localStorage.setItem(THEME_KEY, themePref);
+    } catch {
+      // 保存できなくてもセッション中は切り替わる
+    }
+    syncTheme();
+  });
+
+  media?.addEventListener('change', () => {
+    if (themePref === 'auto') syncTheme();
+  });
+
+  setupReveal(root);
+
+  const initial = loadState();
+  syncTheme();
+  writeUsage(initial.usage, initial.region);
   render();
+}
+
+// スクロールで各セクションをそっと現す。reduced-motionや
+// IntersectionObserver非対応では最初から見えている状態にする。
+function setupReveal(root: HTMLElement): void {
+  const targets = root.querySelectorAll<HTMLElement>('.reveal');
+  const reduce =
+    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || typeof IntersectionObserver !== 'function') {
+    targets.forEach((el) => el.classList.add('in'));
+    return;
+  }
+  const observer = new IntersectionObserver(
+    (entries, obs) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in');
+          obs.unobserve(entry.target);
+        }
+      }
+    },
+    { threshold: 0.1, rootMargin: '0px 0px -6% 0px' },
+  );
+  targets.forEach((el) => observer.observe(el));
 }

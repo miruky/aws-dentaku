@@ -1,47 +1,54 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 260" role="img" aria-label="aws-dentakuのアーキテクチャ図">
-  <title>aws-dentakuのアーキテクチャ</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 270" role="img" aria-label="aws-dentakuのアーキテクチャ図">
+  <title>aws-dentakuのアーキテクチャ。料金データの月次更新から、ブラウザでの見積もりまで。</title>
   <style>
-    .box { fill: none; stroke: #8b949e; stroke-width: 1.5; }
-    .accent-box { fill: none; stroke: #c08a2e; stroke-width: 1.5; }
-    .label { font: 600 14px 'Hiragino Sans', 'Noto Sans JP', sans-serif; fill: #6b7280; }
-    .small { font: 400 11.5px 'Hiragino Sans', 'Noto Sans JP', sans-serif; fill: #6b7280; }
-    .accent-label { font: 700 14px 'Hiragino Sans', 'Noto Sans JP', sans-serif; fill: #a8761c; }
-    .arrow { stroke: #8b949e; stroke-width: 1.5; fill: none; marker-end: url(#head); }
-    .dashed { stroke-dasharray: 5 4; }
+    svg { --paper: #f4f3ef; --ink: #20211f; --muted: #6a695f; --line: #d2cdbf; --accent: #9a4a2f; }
+    @media (prefers-color-scheme: dark) {
+      svg { --paper: #161512; --ink: #ebe8df; --muted: #989284; --line: #443f34; --accent: #d8794f; }
+    }
+    .box { fill: none; stroke: var(--line); stroke-width: 1.5; }
+    .accent-box { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+    .label { font: 600 14px 'Hiragino Sans', 'Noto Sans JP', sans-serif; fill: var(--ink); }
+    .small { font: 400 11.5px 'Hiragino Sans', 'Noto Sans JP', sans-serif; fill: var(--muted); }
+    .mono { font: 600 13.5px ui-monospace, 'SF Mono', Menlo, monospace; fill: var(--ink); }
+    .accent-label { font: 600 13.5px ui-monospace, 'SF Mono', Menlo, monospace; fill: var(--accent); }
+    .arrow { stroke: var(--accent); stroke-width: 1.4; fill: none; marker-end: url(#head); }
+    .dashed { stroke-dasharray: 5 4; stroke: var(--muted); }
   </style>
   <defs>
     <marker id="head" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-      <path d="M0 0L8 4L0 8z" fill="#8b949e"/>
+      <path d="M0 0L8 4L0 8z" fill="var(--accent)"/>
     </marker>
   </defs>
 
-  <rect x="20" y="30" width="190" height="64" rx="8" class="box"/>
-  <text x="40" y="56" class="label">Price List Bulk API</text>
-  <text x="40" y="78" class="small">認証不要の公開料金データ</text>
+  <rect width="940" height="270" fill="var(--paper)"/>
 
-  <rect x="270" y="30" width="180" height="64" rx="8" class="accent-box"/>
-  <text x="290" y="56" class="accent-label">update-prices.mjs</text>
-  <text x="290" y="78" class="small">4サービス x 4リージョン抽出</text>
+  <rect x="20" y="34" width="190" height="64" rx="6" class="box"/>
+  <text x="40" y="60" class="label">Price List Bulk API</text>
+  <text x="40" y="82" class="small">認証不要の公開料金データ</text>
 
-  <rect x="510" y="30" width="150" height="64" rx="8" class="box"/>
-  <text x="530" y="56" class="label">prices.json</text>
-  <text x="530" y="78" class="small">段階料金へ正規化</text>
+  <rect x="270" y="34" width="184" height="64" rx="6" class="accent-box"/>
+  <text x="290" y="60" class="accent-label">update-prices.mjs</text>
+  <text x="290" y="82" class="small">4サービス x 4リージョン抽出</text>
 
-  <rect x="270" y="160" width="180" height="64" rx="8" class="box"/>
-  <text x="290" y="186" class="label">GitHub Actions</text>
-  <text x="290" y="208" class="small">毎月の定期更新で再生成</text>
+  <rect x="514" y="34" width="150" height="64" rx="6" class="box"/>
+  <text x="534" y="60" class="mono">prices.json</text>
+  <text x="534" y="82" class="small">段階料金へ正規化</text>
 
-  <rect x="510" y="160" width="150" height="64" rx="8" class="accent-box"/>
-  <text x="530" y="186" class="accent-label">calc.ts</text>
-  <text x="530" y="208" class="small">段階料金の積み上げ</text>
+  <rect x="270" y="170" width="184" height="64" rx="6" class="box"/>
+  <text x="290" y="196" class="label">GitHub Actions</text>
+  <text x="290" y="218" class="small">毎月の定期更新で再生成</text>
 
-  <rect x="720" y="95" width="200" height="64" rx="8" class="box"/>
-  <text x="740" y="121" class="label">UI</text>
-  <text x="740" y="143" class="small">内訳・構成比・共有URL</text>
+  <rect x="514" y="170" width="150" height="64" rx="6" class="accent-box"/>
+  <text x="534" y="196" class="accent-label">calc.ts</text>
+  <text x="534" y="218" class="small">段階料金の積み上げ</text>
 
-  <path class="arrow" d="M210 62 H262"/>
-  <path class="arrow" d="M450 62 H502"/>
-  <path class="arrow dashed" d="M360 160 V102"/>
-  <path class="arrow" d="M585 102 V152"/>
-  <path class="arrow" d="M660 175 C690 170 690 140 712 130"/>
+  <rect x="724" y="102" width="196" height="64" rx="6" class="box"/>
+  <text x="744" y="128" class="label">ブラウザUI</text>
+  <text x="744" y="150" class="small">内訳・構成比・共有URL</text>
+
+  <path class="arrow" d="M210 66 H266"/>
+  <path class="arrow" d="M454 66 H510"/>
+  <path class="arrow dashed" d="M362 170 V102"/>
+  <path class="arrow" d="M589 102 V166"/>
+  <path class="arrow" d="M664 182 C696 176 700 144 720 134"/>
 </svg>
