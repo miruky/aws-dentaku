@@ -5,10 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="サーバーレス構成の月額AWS料金を公開料金データに基づいて見積もるブラウザ電卓"
+      content="サーバーレス構成の月額AWS料金を公開料金データに基づいて見積もるブラウザ電卓。Lambda・API Gateway・DynamoDB・S3の段階料金に対応。"
     />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f4f3ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#161512" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap"
+      rel="stylesheet"
+    />
     <title>aws-dentaku — サーバーレス料金電卓</title>
+    <script>
+      // 描画前にテーマを確定させ、ちらつきを防ぐ。
+      (function () {
+        try {
+          var pref = localStorage.getItem('aws-dentaku:theme') || 'auto';
+          var dark =
+            pref === 'dark' ||
+            (pref === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
