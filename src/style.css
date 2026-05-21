@@ -236,6 +236,37 @@ fieldset.arch .control__label {
   accent-color: var(--accent);
 }
 
+.presets {
+  gap: 8px;
+}
+
+.preset-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preset {
+  font: inherit;
+  font-size: 0.84rem;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--hair-strong);
+  border-radius: 2px;
+  padding: 6px 13px;
+  cursor: pointer;
+  transition:
+    border-color 0.18s var(--ease),
+    color 0.18s var(--ease),
+    background 0.18s var(--ease);
+}
+
+.preset:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
 /* 本体グリッド */
 
 main {
@@ -355,6 +386,12 @@ main {
   flex-wrap: wrap;
 }
 
+.pane-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .ghost {
   font: inherit;
   font-size: 0.8rem;
@@ -393,6 +430,45 @@ main {
 .total__per {
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+.jpy {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.jpy__amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+
+.jpy__rate {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.jpy__rate input {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--ink);
+  background: var(--field);
+  border: 1px solid var(--hair-strong);
+  border-radius: 2px;
+  padding: 3px 6px;
+  width: 64px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.jpy__rate input:hover {
+  border-color: var(--muted);
 }
 
 .donut-wrap {
