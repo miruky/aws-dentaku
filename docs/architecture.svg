@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 260" role="img" aria-label="aws-dentakuのアーキテクチャ図">
+  <title>aws-dentakuのアーキテクチャ</title>
+  <style>
+    .box { fill: none; stroke: #8b949e; stroke-width: 1.5; }
+    .accent-box { fill: none; stroke: #c08a2e; stroke-width: 1.5; }
+    .label { font: 600 14px 'Hiragino Sans', 'Noto Sans JP', sans-serif; fill: #6b7280; }
+    .small { font: 400 11.5px 'Hiragino Sans', 'Noto Sans JP', sans-serif; fill: #6b7280; }
+    .accent-label { font: 700 14px 'Hiragino Sans', 'Noto Sans JP', sans-serif; fill: #a8761c; }
+    .arrow { stroke: #8b949e; stroke-width: 1.5; fill: none; marker-end: url(#head); }
+    .dashed { stroke-dasharray: 5 4; }
+  </style>
+  <defs>
+    <marker id="head" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0L8 4L0 8z" fill="#8b949e"/>
+    </marker>
+  </defs>
+
+  <rect x="20" y="30" width="190" height="64" rx="8" class="box"/>
+  <text x="40" y="56" class="label">Price List Bulk API</text>
+  <text x="40" y="78" class="small">認証不要の公開料金データ</text>
+
+  <rect x="270" y="30" width="180" height="64" rx="8" class="accent-box"/>
+  <text x="290" y="56" class="accent-label">update-prices.mjs</text>
+  <text x="290" y="78" class="small">4サービス x 4リージョン抽出</text>
+
+  <rect x="510" y="30" width="150" height="64" rx="8" class="box"/>
+  <text x="530" y="56" class="label">prices.json</text>
+  <text x="530" y="78" class="small">段階料金へ正規化</text>
+
+  <rect x="270" y="160" width="180" height="64" rx="8" class="box"/>
+  <text x="290" y="186" class="label">GitHub Actions</text>
+  <text x="290" y="208" class="small">毎月の定期更新で再生成</text>
+
+  <rect x="510" y="160" width="150" height="64" rx="8" class="accent-box"/>
+  <text x="530" y="186" class="accent-label">calc.ts</text>
+  <text x="530" y="208" class="small">段階料金の積み上げ</text>
+
+  <rect x="720" y="95" width="200" height="64" rx="8" class="box"/>
+  <text x="740" y="121" class="label">UI</text>
+  <text x="740" y="143" class="small">内訳・構成比・共有URL</text>
+
+  <path class="arrow" d="M210 62 H262"/>
+  <path class="arrow" d="M450 62 H502"/>
+  <path class="arrow dashed" d="M360 160 V102"/>
+  <path class="arrow" d="M585 102 V152"/>
+  <path class="arrow" d="M660 175 C690 170 690 140 712 130"/>
+</svg>
